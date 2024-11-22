@@ -17,6 +17,7 @@ def get_device():
         # if not we should use our CPU
         device = "cpu"
 
+    print(device)
     return device
 
 
@@ -93,9 +94,8 @@ def train(model, train_loader, val_loader, num_epochs, lr):
         # loop over training data
         for i, (audio, labels) in enumerate(train_loader):
             # reshape labels to have the same form as output
-            # make sure labels are of torch.float32 type
-            labels = labels.float()
-            labels = labels.unsqueeze(1)
+            # make sure labels are of torch.long type
+            labels = labels.long()
 
             # move tensors to the configured device
             audio = audio.to(device=device)

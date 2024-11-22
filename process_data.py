@@ -150,13 +150,15 @@ def gen_loader(dataset, train_split=0.8, val_split=0.1, test_split=0.1):
 def collate_fn(batch):
     # Find the maximum length in the batch
     max_len = max([item[0].size(-1) for item in batch])
-    print(max_len)
+    
+    # For testing ConvNet
+    max_len = 40
 
     # Pad each waveform in the batch to the max length
     padded_waveforms = []
     labels = []
     for waveform, label in batch:
-        print(waveform.size(-1))
+        #print(waveform.size(-1))
         padding = max_len - waveform.size(-1)
         # Pad the waveform with zeros at the end
         padded_waveform = torch.nn.functional.pad(waveform, (0, padding)).squeeze()

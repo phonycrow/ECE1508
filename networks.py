@@ -17,10 +17,10 @@ class Swish(nn.Module): # Swish(x) = x∗σ(x)
         return input * torch.sigmoid(input)
 
 
-''' FNN '''
-class FNN(nn.Module):
+''' MLP '''
+class MLP(nn.Module):
     def __init__(self, num_classes):
-        super(FNN, self).__init__()
+        super(MLP, self).__init__()
         self.fc_1 = nn.Linear(8000, 128)
         self.fc_2 = nn.Linear(128, 128)
         self.fc_3 = nn.Linear(128, num_classes)
@@ -32,10 +32,10 @@ class FNN(nn.Module):
         return out
 
 
-''' CNN '''
-class CNN(nn.Module):
+''' ConvNet '''
+class ConvNet(nn.Module):
     def __init__(self, num_classes, net_width, net_depth, net_act, net_norm, net_pooling, in_size = 8000):
-        super(CNN, self).__init__()
+        super(ConvNet, self).__init__()
 
         self.features, shape_feat = self._make_layers(net_width, net_depth, net_norm, net_act, net_pooling, in_size)
         self.num_feat = shape_feat[0]*shape_feat[1]
@@ -43,12 +43,13 @@ class CNN(nn.Module):
 
     def forward(self, x):
         out = self.features(x)
-        out = out.view(out.size(0))
+        out = out.view(out.size(0), -1)
         out = self.classifier(out)
         return out
 
     def embed(self, x):
         out = self.features(x)
+        out = out.view(out.size(0), -1)
         return out
 
     def _get_activation(self, net_act):
@@ -65,18 +66,18 @@ class CNN(nn.Module):
 
     def _get_pooling(self, net_pooling):
         if net_pooling == 'maxpooling':
-            return nn.MaxPool2d(kernel_size=2, stride=2)
+            return nn.MaxPool1d(kernel_size=2, stride=2)
         elif net_pooling == 'avgpooling':
-            return nn.AvgPool2d(kernel_size=2, stride=2)
+            return nn.AvgPool1d(kernel_size=2, stride=2)
         elif net_pooling == 'none':
             return None
         else:
             exit('unknown net_pooling: %s'%net_pooling)
 
     def _get_normlayer(self, net_norm, shape_feat):
-        # shape_feat = (c*h*w)
+        # shape_feat = (c*l)
         if net_norm == 'batchnorm':
-            return nn.BatchNorm2d(shape_feat[0], affine=True)
+            return nn.BatchNorm1d(shape_feat[0], affine=True)
         elif net_norm == 'layernorm':
             return nn.LayerNorm(shape_feat, elementwise_affine=True)
         elif net_norm == 'instancenorm':
@@ -90,8 +91,8 @@ class CNN(nn.Module):
 
     def _make_layers(self, net_width, net_depth, net_norm, net_act, net_pooling, in_size):
         layers = []
-        in_channels = 1
-        shape_feat = [1, in_size]
+        in_channels = 64
+        shape_feat = [64, in_size]
         for d in range(net_depth):
             layers += [nn.Conv1d(in_channels, net_width, kernel_size=3, padding=3 if d == 0 else 1)]
             shape_feat[0] = net_width
@@ -106,11 +107,11 @@ class CNN(nn.Module):
         return nn.Sequential(*layers), shape_feat
 
 
-''' CNN -> LSTM '''
-class CNNToLSTMNet(nn.Module):
+''' Conv -> LSTM '''
+class ConvToLSTMNet(nn.Module):
     def __init__(self, num_classes, cnn_width, cnn_depth, cnn_act, cnn_norm, cnn_pooling, lstm_width, lstm_depth, bidirectional = False, in_size = 8000):
-        super(CNNToLSTMNet, self).__init__()
-        self.cnn = CNN(num_classes, cnn_width, cnn_depth, cnn_act, cnn_norm, cnn_pooling, in_size)
+        super(ConvToLSTMNet, self).__init__()
+        self.cnn = ConvNet(num_classes, cnn_width, cnn_depth, cnn_act, cnn_norm, cnn_pooling, in_size)
         self.lstm = nn.LSTM(self.cnn.num_feat, lstm_width, lstm_depth, bidirectional=bidirectional)
         self.num_feat = (2 if bidirectional else 1)*lstm_width
         self.classifier = nn.Linear(self.num_feat, num_classes)
