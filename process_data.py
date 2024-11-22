@@ -91,26 +91,60 @@ class AudioDataset(Dataset):
         return waveform, label_index
 
 
-# Transform the data
-src_dir = os.getcwd()+'\AudioMNIST\AudioMNIST\data'
-dst_dir = os.getcwd()+'\ProcessedData'
-transform = torch.nn.Sequential(
-    torchaudio.transforms.MelSpectrogram(sample_rate=8000, n_mels=64),
-    torchaudio.transforms.AmplitudeToDB()
-)
+def process_load_data(src_dir, dst_dir):
+    """
+    Processes audio files located in the source directory and saves them in the destination directory.
+    Loads the dataset if the audio files have already been processed
 
-dataset = AudioDataset(src_dir=src_dir, dst_dir=dst_dir, transform=transform)
+    Args:
+    src_dir (str): Source directory containing audio files
+    dst_dir (str): Directory to save the processed audio files.
+    """
 
-# Check label mapping
-print(dataset.label_to_index)
+    # src_dir = os.getcwd()+'\AudioMNIST\AudioMNIST\data'
+    # dst_dir = os.getcwd()+'\ProcessedData'
+
+    transform = torch.nn.Sequential(
+        torchaudio.transforms.MelSpectrogram(sample_rate=8000, n_mels=64),
+        torchaudio.transforms.AmplitudeToDB()
+    )
+
+    dataset = AudioDataset(src_dir=src_dir, dst_dir=dst_dir, transform=transform)
+
+    # Check label mapping
+    print(f'Classes: {dataset.label_to_index.keys()}')
+
+    return dataset, dataset.labels
 
 
-# Split data into training, validation and test set
-train_size = int(0.8 * len(dataset))  # 80% for training
-val_size = int(0.1 * len(dataset))    # 10% for validation
-test_size = int(0.1 * len(dataset))   # 10% for testing
+def gen_loader(dataset, train_split=0.8, val_split=0.1, test_split=0.1):
+    """
+    Returns the training, validation and test data loaders for input into the neural networks
+    Args:
+    dataset (AudioDataset): processed audio dataset
+    train_split: Percentage of dataset to use for training (e.g. 0.8)
+    val_split: Percentage of dataset to use for validation (e.g. 0.1)
+    test_split: Percentage of dataset to use for testing (e.g. 0.1)
+    """
+    # Split data into training, validation and test set
+    train_size = int(train_split * len(dataset))
+    val_size = int(val_split * len(dataset))
+    test_size = int(test_split * len(dataset))
 
-train_set, val_set, test_set = random_split(dataset, [train_size, val_size, test_size])
+    train_set, val_set, test_set = random_split(dataset, [train_size, val_size, test_size])
+
+    # Create dataloaders for training, val and test set
+    train_dataloader = DataLoader(train_set, batch_size=16, shuffle=True, collate_fn=collate_fn)
+    val_dataloader = DataLoader(val_set, batch_size=16, shuffle=True, collate_fn=collate_fn)
+    test_dataloader = DataLoader(test_set, batch_size=16, shuffle=True, collate_fn=collate_fn)
+
+    # Check dataset size in each dataloader
+    print(f'# of batches in training dataloader: {len(train_dataloader)}')
+    print(f'# of batches in val dataloader: {len(val_dataloader)}')
+    print(f'# of batches in test dataloader: {len(test_dataloader)}')
+
+    return train_dataloader, val_dataloader, test_dataloader
+
 
 # Create collate function for the DataLoader
 def collate_fn(batch):
@@ -134,12 +168,4 @@ def collate_fn(batch):
     return waveforms_batch, torch.tensor(labels)
 
 
-# Create dataloaders for training, val and test set
-train_dataloader = DataLoader(train_set, batch_size=16, shuffle=True, collate_fn= collate_fn)
-val_dataloader = DataLoader(val_set, batch_size=16, shuffle=True, collate_fn= collate_fn)
-test_dataloader = DataLoader(test_set, batch_size=16, shuffle=True, collate_fn= collate_fn)
 
-# Check dataset size in each dataloader
-print(f'# of batches in training dataloader: {len(train_dataloader)}')
-print(f'# of batches in val dataloader: {len(val_dataloader)}')
-print(f'# of batches in test dataloader: {len(test_dataloader)}')
