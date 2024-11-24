@@ -17,7 +17,6 @@ def get_device():
         # if not we should use our CPU
         device = "cpu"
 
-    print(device)
     return device
 
 
@@ -39,23 +38,26 @@ def test(model, test_loader, loss_function):
         # loop over test mini-batches
         for i, (audio, labels) in enumerate(test_loader):
             # reshape labels to have the same form as output
-            # make sure labels are of torch.float32 type
-            labels = labels.float()
-            labels = labels.unsqueeze(1)
+            # make sure labels are of torch.long type
+            labels = labels.long()
 
             # move tensors to the configured device
             audio = audio.to(device=device)
             labels = labels.to(device=device)
+            # print(labels)
 
             # forward pass
             outputs = model(audio)
             loss = loss_function(outputs, labels)
 
             # determine the class of output from softmax output
-            predicted = np.argmax(outputs)
+            softmax = torch.nn.Softmax(dim=1)
+            predicted_probs = softmax(outputs)
+            predicted_class = torch.argmax(predicted_probs,dim =1)
+            # print(f'Class: {predicted_class}')
 
             # compute the fraction of correctly predicted labels
-            correct_predict = (predicted == labels).float().mean()
+            correct_predict = (predicted_class == labels).float().mean()
 
             risk += loss.item()
             accuracy += correct_predict.item()
@@ -68,13 +70,13 @@ def test(model, test_loader, loss_function):
 
 
 # Training function
-def train(model, train_loader, val_loader, num_epochs, lr):
+def train(model, train_loader, val_loader, num_epochs, lr, loss_fn):
     # we first move our model to the configured device
     device = get_device()
     model = model.to(device=device)
 
     # set loss to cross entropy loss
-    loss_function = nn.CrossEntropyLoss()
+    loss_function = loss_fn
 
     # Set optimizer with optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -93,6 +95,7 @@ def train(model, train_loader, val_loader, num_epochs, lr):
 
         # loop over training data
         for i, (audio, labels) in enumerate(train_loader):
+
             # reshape labels to have the same form as output
             # make sure labels are of torch.long type
             labels = labels.long()
@@ -100,6 +103,7 @@ def train(model, train_loader, val_loader, num_epochs, lr):
             # move tensors to the configured device
             audio = audio.to(device=device)
             labels = labels.to(device=device)
+
 
             # forward pass
             outputs = model(audio)
@@ -129,7 +133,7 @@ def train(model, train_loader, val_loader, num_epochs, lr):
         # we can print a message every second epoch
         if (epoch + 1) % 2 == 0:
             print(f'Epoch {epoch + 1}: Train Risk = {train_risk[-1]:.3f}, Validation Risk = {val_risk[-1]:.3f},'
-                  f'Test Accuracy {val_accuracy[-1]:.3f}')
+                  f'Validation Accuracy {val_accuracy[-1]:.3f}')
 
     # plot the training and validation losses
     plt.plot([i + 1 for i in range(num_epochs)], train_risk, label='train')

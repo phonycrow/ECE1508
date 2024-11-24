@@ -22,6 +22,7 @@ class AudioDataset(Dataset):
         self.transform = transform
         self.file_paths = []
         self.labels = []
+        self.data = []
 
         # Extract audio file paths and labels from the source directory
         for folder in os.listdir(src_dir):
@@ -37,58 +38,49 @@ class AudioDataset(Dataset):
 
                     # Extract class label from the filename
                     # Class label is the part before the first underscore (e.g., "0_01_0.wav")
-                    label = file_name.split('_')[0]
+                    label = int(file_name.split('_')[0])
+                    # print(f'Labels type: {type(label)}')
                     self.labels.append(label)
 
                     # Make the destination directory match the source directory structure
                     dst_folder_dir = os.path.join(dst_dir, folder)
                     os.makedirs(dst_folder_dir, exist_ok=True)
 
+                    # Path to the transformed file
+                    transformed_path = os.path.join(dst_folder_dir, file_name)
+
+                    # Load audio
+                    if os.path.exists(transformed_path):
+                        # Load the transformed audio if it exists
+                        # print(f"Loading saved file: {transformed_path}")
+                        waveform, sample_rate = torchaudio.load(transformed_path)
+                        self.data.append(waveform)
+                    else:
+                        # Process the raw audio and save the transformed file
+                        # print(f"Processing and saving file: {transformed_path}")
+                        waveform, sample_rate = torchaudio.load(file_path)
+
+                        # Change all files to 8000 Hz sample rate
+                        if sample_rate != 8000:
+                            resample_transform = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=8000)
+                            waveform = resample_transform(waveform)
+
+                        if self.transform:
+                            waveform = self.transform(waveform)
+
+                        # Save the transformed waveform
+                        torchaudio.save(transformed_path, waveform[0], sample_rate)
+                        self.data.append(waveform)
+
         # Create a mapping of labels to numeric values
         self.label_to_index = {label: idx for idx, label in enumerate(sorted(set(self.labels)))}
         self.index_to_label = {idx: label for label, idx in self.label_to_index.items()}
 
     def __len__(self):
-        return len(self.file_paths)
+        return len(self.data)
 
     def __getitem__(self, idx):
-        file_path = self.file_paths[idx]
-        label = self.labels[idx]
-        label_index = self.label_to_index[label]
-
-        # Path to the transformed file
-        folder_path = Path(file_path).parts[-2]
-        file_name = Path(file_path).name
-        transformed_path = os.path.join(self.dst_dir, folder_path, file_name)
-
-        # Debugging print statements
-        # print(f"Original File Path: {file_path}")
-        # print(f"Transformed Path: {transformed_path}")
-
-        # Ensure directory exists for saving
-        os.makedirs(os.path.dirname(transformed_path), exist_ok=True)
-
-        if os.path.exists(transformed_path):
-            # Load the transformed audio if it exists
-            # print(f"Loading saved file: {transformed_path}")
-            waveform, sample_rate = torchaudio.load(transformed_path)
-        else:
-            # Process the raw audio and save the transformed file
-            # print(f"Processing and saving file: {transformed_path}")
-            waveform, sample_rate = torchaudio.load(file_path)
-
-            # Change all files to 8000 Hz sample rate
-            if sample_rate != 8000:
-                resample_transform = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=8000)
-                waveform = resample_transform(waveform)
-
-            if self.transform:
-                waveform = self.transform(waveform)
-
-            # Save the transformed waveform
-            torchaudio.save(transformed_path, waveform[0], sample_rate)
-
-        return waveform, label_index
+        return self.data[idx], self.labels[idx]
 
 
 def process_load_data(src_dir, dst_dir):
