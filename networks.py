@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from convlstm import ConvLSTM
+import convlstm
 # Acknowledgement to
 # https://github.com/kuangliu/pytorch-cifar,
 # https://github.com/BIGBALLON/CIFAR-ZOO,
@@ -38,8 +38,9 @@ class ConvNet(nn.Module):
         super(ConvNet, self).__init__()
 
         self.features, shape_feat = self._make_layers(net_width, net_depth, net_norm, net_act, net_pooling, in_size)
-        self.num_feat = shape_feat[0]*shape_feat[1]
-        self.classifier = nn.Linear(self.num_feat, num_classes)
+        self.num_channels = shape_feat[0]
+        num_feat = shape_feat[0]*shape_feat[1]
+        self.classifier = nn.Linear(num_feat, num_classes)
 
     def forward(self, x):
         out = self.features(x)
@@ -49,7 +50,6 @@ class ConvNet(nn.Module):
 
     def embed(self, x):
         out = self.features(x)
-        out = out.view(out.size(0), -1)
         return out
 
     def _get_activation(self, net_act):
@@ -111,39 +111,22 @@ class ConvNet(nn.Module):
 class ConvToLSTMNet(nn.Module):
     def __init__(self, num_classes, cnn_width, cnn_depth, cnn_act, cnn_norm, cnn_pooling, lstm_width, lstm_depth, bidirectional = False, in_size = 8000):
         super(ConvToLSTMNet, self).__init__()
+
         self.cnn = ConvNet(num_classes, cnn_width, cnn_depth, cnn_act, cnn_norm, cnn_pooling, in_size)
-        self.lstm = nn.LSTM(self.cnn.num_feat, lstm_width, lstm_depth, bidirectional=bidirectional)
+        self.lstm = nn.LSTM(self.cnn.num_channels, lstm_width, lstm_depth, bidirectional=bidirectional, batch_first=True)
         self.num_feat = (2 if bidirectional else 1)*lstm_width
         self.classifier = nn.Linear(self.num_feat, num_classes)
     
     def forward(self, x):
         out = self.cnn.embed(x)
-        out = out.view(out.size(0))
-        out = self.lstm(out)
+        out = out.permute(0, 2, 1)
+        _, (out, _) = self.lstm(out)
+        out = out.squeeze(0)
         out = self.classifier(out)
         return out
     
     def embed(self, x):
         out = self.cnn.embed(x)
-        out = out.view(out.size(0))
-        out = self.lstm(out)
-        return out
-
-
-''' ConvLSTMNet '''
-class ConvLSTMNet(nn.Module):
-    def __init__(self, num_classes, convlstm_width, convlstm_kernel_size, convlstm_depth, in_size = 8000):
-        super(ConvLSTMNet, self).__init__()
-        self.convlstm = ConvLSTM(in_size, convlstm_width, convlstm_kernel_size, convlstm_depth)
-        self.classifier = nn.Linear(convlstm_width, num_classes)
-    
-    def forward(self, x):
-        out = self.convlstm(x)
-        out = out.view(out.size(0))
-        out = self.classifier(out)
-        return out
-    
-    def embed(self, x):
-        out = self.convlstm(x)
-        out = out.view(out.size(0))
+        out = out.view(out.size(1), out.size(0))
+        _, (out, _) = self.lstm(out)
         return out

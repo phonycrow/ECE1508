@@ -109,7 +109,7 @@ def process_load_data(src_dir, dst_dir):
     return dataset, dataset.labels
 
 
-def gen_loader(dataset, train_split=0.8, val_split=0.1, test_split=0.1):
+def gen_loader(dataset, batch_size=16, train_split=0.8, val_split=0.1, test_split=0.1, length=None):
     """
     Returns the training, validation and test data loaders for input into the neural networks
     Args:
@@ -117,6 +117,7 @@ def gen_loader(dataset, train_split=0.8, val_split=0.1, test_split=0.1):
     train_split: Percentage of dataset to use for training (e.g. 0.8)
     val_split: Percentage of dataset to use for validation (e.g. 0.1)
     test_split: Percentage of dataset to use for testing (e.g. 0.1)
+    max_len: Set a predefined length for the waveforms
     """
     # Split data into training, validation and test set
     train_size = int(train_split * len(dataset))
@@ -125,10 +126,12 @@ def gen_loader(dataset, train_split=0.8, val_split=0.1, test_split=0.1):
 
     train_set, val_set, test_set = random_split(dataset, [train_size, val_size, test_size])
 
+    collate_fn = lambda batch : collate(batch, length)
+
     # Create dataloaders for training, val and test set
-    train_dataloader = DataLoader(train_set, batch_size=16, shuffle=True, collate_fn=collate_fn)
-    val_dataloader = DataLoader(val_set, batch_size=16, shuffle=True, collate_fn=collate_fn)
-    test_dataloader = DataLoader(test_set, batch_size=16, shuffle=True, collate_fn=collate_fn)
+    train_dataloader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    val_dataloader = DataLoader(val_set, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    test_dataloader = DataLoader(test_set, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 
     # Check dataset size in each dataloader
     print(f'# of batches in training dataloader: {len(train_dataloader)}')
@@ -139,12 +142,9 @@ def gen_loader(dataset, train_split=0.8, val_split=0.1, test_split=0.1):
 
 
 # Create collate function for the DataLoader
-def collate_fn(batch):
+def collate(batch, length = None):
     # Find the maximum length in the batch
-    max_len = max([item[0].size(-1) for item in batch])
-    
-    # For testing ConvNet
-    max_len = 40
+    max_len = length or max([item[0].size(-1) for item in batch])
 
     # Pad each waveform in the batch to the max length
     padded_waveforms = []
