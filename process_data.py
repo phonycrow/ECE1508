@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 
 
 class AudioDataset(Dataset):
-    def __init__(self, src_dir, dst_dir, transform=None):
+    def __init__(self, src_dir, dst_dir, transform=None, input_type="wav"):
         """
         Class to extract source audio files and transform them for training
 
@@ -16,10 +16,12 @@ class AudioDataset(Dataset):
             src_dir (str): Source directory containing audio files
             dst_dir (str): Directory to save the processed audio files.
             transform: Transform to apply to audio data.
+            input_type: Spectrogram or repeated 1 second long wav file
         """
         self.src_dir = src_dir
         self.dst_dir = dst_dir
         self.transform = transform
+        self.input_type = input_type
         self.file_paths = []
         self.labels = []
         self.data = []
@@ -65,11 +67,18 @@ class AudioDataset(Dataset):
                             resample_transform = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=8000)
                             waveform = resample_transform(waveform)
 
+                        if self.input_type == "wav":
+                            # Repeat waveform to ensure 5-second duration
+                            duration = waveform.shape[1] / 8000  # Current duration in seconds
+                            if duration < 5.0:
+                                repeat_count = int(5.0 / duration) + 1
+                                waveform = waveform.repeat(1, repeat_count)[:, :40000]
+
                         if self.transform:
                             waveform = self.transform(waveform)
 
                         # Save the transformed waveform
-                        torchaudio.save(transformed_path, waveform[0], sample_rate)
+                        torchaudio.save(transformed_path, waveform, sample_rate)
                         self.data.append(waveform)
 
         # Create a mapping of labels to numeric values
@@ -83,7 +92,7 @@ class AudioDataset(Dataset):
         return self.data[idx], self.labels[idx]
 
 
-def process_load_data(src_dir, dst_dir):
+def process_load_data(src_dir, dst_dir, input_type="spectro"):
     """
     Processes audio files located in the source directory and saves them in the destination directory.
     Loads the dataset if the audio files have already been processed
@@ -91,17 +100,23 @@ def process_load_data(src_dir, dst_dir):
     Args:
     src_dir (str): Source directory containing audio files
     dst_dir (str): Directory to save the processed audio files.
+    input_type (str): If input_type = spectro, spectrograms will be loaded. Otherwise, the wav files will be loaded.
     """
 
     # src_dir = os.getcwd()+'\AudioMNIST\AudioMNIST\data'
     # dst_dir = os.getcwd()+'\ProcessedData'
 
-    transform = torch.nn.Sequential(
-        torchaudio.transforms.MelSpectrogram(sample_rate=8000, n_mels=64),
-        torchaudio.transforms.AmplitudeToDB()
-    )
+    # If spectrograms are desired to be input into the neural network
+    if input_type == "spectro":
+        transform = torch.nn.Sequential(
+            torchaudio.transforms.MelSpectrogram(sample_rate=8000, n_mels=64),
+            torchaudio.transforms.AmplitudeToDB()
+        )
 
-    dataset = AudioDataset(src_dir=src_dir, dst_dir=dst_dir, transform=transform)
+    else:
+        transform = None
+
+    dataset = AudioDataset(src_dir=src_dir, dst_dir=dst_dir, transform=transform, input_type=input_type)
 
     # Check label mapping
     print(f'Classes: {dataset.label_to_index.keys()}')

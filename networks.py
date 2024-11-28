@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import convlstm
+# import convlstm
 # Acknowledgement to
 # https://github.com/kuangliu/pytorch-cifar,
 # https://github.com/BIGBALLON/CIFAR-ZOO,
