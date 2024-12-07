@@ -4,6 +4,7 @@ import torchaudio
 from torch.utils.data import Dataset, random_split
 from pathlib import Path
 from torch.utils.data import DataLoader
+import csv
 
 
 
@@ -38,7 +39,7 @@ class AudioDataset(Dataset):
                     file_path = os.path.join(subject_path, file_name)
                     self.file_paths.append(file_path)
 
-                    # Extract class label from the filename
+                    # Extract class label from file name
                     # Class label is the part before the first underscore (e.g., "0_01_0.wav")
                     label = int(file_name.split('_')[0])
                     # print(f'Labels type: {type(label)}')

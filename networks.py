@@ -21,11 +21,12 @@ class Swish(nn.Module): # Swish(x) = x∗σ(x)
 class MLP(nn.Module):
     def __init__(self, num_classes):
         super(MLP, self).__init__()
-        self.fc_1 = nn.Linear(8000, 128)
+        self.fc_1 = nn.Linear(2560, 128)
         self.fc_2 = nn.Linear(128, 128)
         self.fc_3 = nn.Linear(128, num_classes)
     
     def forward(self, x):
+        x = x.view(x.size(0), -1)
         out = F.relu(self.fc_1(x))
         out = F.relu(self.fc_2(out))
         out = self.fc_3(out)
