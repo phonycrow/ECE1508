@@ -136,8 +136,10 @@ def train(model, train_loader, val_loader, num_epochs, lr, loss_fn):
                   f'Validation Accuracy {val_accuracy[-1]:.3f}')
 
     # plot the training and validation losses
+    plt.figure(figsize=(10, 6))
     plt.plot([i + 1 for i in range(num_epochs)], train_risk, label='train')
     plt.plot([i + 1 for i in range(num_epochs)], val_risk, label='validation')
+    plt.xlim(1,10)
     plt.legend()
     plt.title('Train and Validation Risk')
     plt.xlabel('Epoch')
@@ -145,7 +147,9 @@ def train(model, train_loader, val_loader, num_epochs, lr, loss_fn):
     plt.show()
 
     # plot the validation accuracy
+    plt.figure(figsize=(10, 6))
     plt.plot([i + 1 for i in range(num_epochs)], val_accuracy)
+    plt.xlim(1, 10)
     plt.title('Validation Accuracy')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
