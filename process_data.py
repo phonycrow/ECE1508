@@ -78,6 +78,9 @@ class AudioDataset(Dataset):
                         if self.transform:
                             waveform = self.transform(waveform)
 
+                        if self.input_type == "spectro":
+                            waveform = waveform[0]
+
                         # Save the transformed waveform
                         torchaudio.save(transformed_path, waveform, sample_rate)
                         self.data.append(waveform)

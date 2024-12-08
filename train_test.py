@@ -83,12 +83,14 @@ def train(model, train_loader, val_loader, num_epochs, lr, loss_fn):
 
     # Initiate the values
     train_risk = []
+    train_accuracy = []
     val_risk = []
     val_accuracy = []
 
     for epoch in range(num_epochs):
         # training risk in one epoch
         risk = 0
+        accuracy = 0
 
         # tell pytorch that you start training
         model.train()
@@ -109,8 +111,19 @@ def train(model, train_loader, val_loader, num_epochs, lr, loss_fn):
             outputs = model(audio)
             loss = loss_function(outputs, labels)
 
+            
+            # determine the class of output from softmax output
+            softmax = torch.nn.Softmax(dim=1)
+            predicted_probs = softmax(outputs)
+            predicted_class = torch.argmax(predicted_probs,dim =1)
+            # print(f'Class: {predicted_class}')
+
+            # compute the fraction of correctly predicted labels
+            correct_predict = (predicted_class == labels).float().mean()
+
             # collect the training loss
             risk += loss.item()
+            accuracy += correct_predict.item()
 
             # backward pass
             optimizer.zero_grad()
@@ -127,32 +140,39 @@ def train(model, train_loader, val_loader, num_epochs, lr, loss_fn):
 
         # collect losses and accuracy
         train_risk.append(risk / len(train_loader))
+        train_accuracy.append(accuracy / len(train_loader))
         val_risk.append(risk_epoch)
         val_accuracy.append(accuracy_epoch)
 
         # we can print a message every second epoch
         if (epoch + 1) % 2 == 0:
-            print(f'Epoch {epoch + 1}: Train Risk = {train_risk[-1]:.3f}, Validation Risk = {val_risk[-1]:.3f},'
-                  f'Validation Accuracy {val_accuracy[-1]:.3f}')
+            print(f'Epoch {epoch + 1}: Train Risk = {train_risk[-1]:.3f}, Train Accuracy {train_accuracy[-1]:.3f}, \
+                  Validation Risk = {val_risk[-1]:.3f}, Validation Accuracy {val_accuracy[-1]:.3f}')
 
     # plot the training and validation losses
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(10, 4))
     plt.plot([i + 1 for i in range(num_epochs)], train_risk, label='train')
     plt.plot([i + 1 for i in range(num_epochs)], val_risk, label='validation')
     plt.xlim(1,10)
+    plt.ylim(bottom=0)
     plt.legend()
-    plt.title('Train and Validation Risk')
+    #plt.title('Train and Validation Risk')
     plt.xlabel('Epoch')
     plt.ylabel('Risk')
+    plt.savefig('risk.png', bbox_inches='tight')
     plt.show()
 
     # plot the validation accuracy
-    plt.figure(figsize=(10, 6))
-    plt.plot([i + 1 for i in range(num_epochs)], val_accuracy)
+    plt.figure(figsize=(10, 4))
+    plt.plot([i + 1 for i in range(num_epochs)], train_accuracy, label='train')
+    plt.plot([i + 1 for i in range(num_epochs)], val_accuracy, label='validation')
     plt.xlim(1, 10)
-    plt.title('Validation Accuracy')
+    plt.ylim(top=1.0, bottom=0.8)
+    plt.legend()
+    #plt.title('Validation Accuracy')
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
+    plt.savefig('accuracy.png', bbox_inches='tight')
     plt.show()
 
     return train_risk, val_risk, val_accuracy
