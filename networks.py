@@ -1,6 +1,9 @@
+import cv2
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from utils import save_image
 
 # import convlstm
 # Acknowledgement to
@@ -130,4 +133,17 @@ class ConvToLSTMNet(nn.Module):
         out = self.cnn.embed(x)
         out = out.view(out.size(1), out.size(0))
         _, (out, _) = self.lstm(out)
+        return out
+
+    def visualize(self, x):
+        out = self.cnn.embed(x)
+        img = out.permute(2, 1, 0).detach().cpu().numpy()
+        save_image('cnn_out.png', img)
+        out = out.permute(0, 2, 1)
+        _, (out, _) = self.lstm(out)
+        out = out.squeeze(0)
+        print(out.size())
+        img = out.detach().cpu().numpy()
+        save_image('lstm_out.png', img)
+        out = self.classifier(out)
         return out
